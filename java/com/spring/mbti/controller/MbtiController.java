@@ -1,6 +1,7 @@
 package com.spring.mbti.controller;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -34,58 +35,88 @@ public class MbtiController {
 		return "mbti/mbtiList";
 	}
 
-	// mbti 결과 표시
+	// mbti 결과 계산 및 표시
 	@RequestMapping(value = "/mbti/mbtiList.do", method = RequestMethod.POST)
 	public String mbtiResult(Locale locale, Model model, MbtiAnswer mbtiAnswer) throws Exception {
 
 		List<MbtiVo> questionList = mbtiService.selectList();
-		int eScore = 0, iScore = 0;
-		int nScore = 0, sScore = 0;
-		int fScore = 0, tScore = 0;
-		int jScore = 0, pScore = 0;
+		// 각 타입별로 점수 계산
+		Map<Character,Integer> scoreMap = new HashMap<>();
 
 		for (int i = 0; i < questionList.size(); i++) {
 			MbtiVo question = questionList.get(i);
 			int answer = mbtiAnswer.getAnswers().get(i);
-			int score = Math.abs(answer-4);
-			String type = question.getMbtiType();
-			char mbti = answer < 4 ? type.charAt(0) : type.charAt(1);
 
-			switch (mbti) {
-			case 'E':
-				eScore += score;
+			char mbti = 0;
+			int point = 0;
+			// 타입을 하나씩 분리
+			char firstType = question.getMbtiType().charAt(0);
+			char secondType = question.getMbtiType().charAt(1);
+
+			switch (answer) {
+			case 1:
+				mbti = firstType;
+				point = 3;
 				break;
-			case 'I':
-				iScore += score;
+			case 2:
+				mbti = firstType;
+				point = 2;
 				break;
-			case 'N':
-				nScore += score;
+			case 3:
+				mbti = firstType;
+				point = 1;
 				break;
-			case 'S':
-				sScore += score;
+			case 4:
+			    break;
+			case 5:
+				mbti = secondType;
+				point = 1;
 				break;
-			case 'F':
-				fScore += score;
+			case 6:
+				mbti = secondType;
+				point = 2;
 				break;
-			case 'T':
-				tScore += score;
+			case 7:
+				mbti = secondType;
+				point = 3;
 				break;
-			case 'P':
-				pScore += score;
-				break;
-			case 'J':
-				jScore += score;
-				break;
+			}
+
+			if (mbti != 0) {
+				int score = 0;
+				// map 안에 해당 타입의 키가있으면
+				if(scoreMap.containsKey(mbti)) {
+					// value를 가져오고
+					score = scoreMap.get(mbti);
+					// 기존 value와 추가된 점수를 합하여 다시 저장
+					scoreMap.put(mbti, score + point);
+				} else {
+					// map 안에 해당 타입의 키가 없으면 그냥 저장
+					scoreMap.put(mbti, point);
+				}
 			}
 		}
 
+		String[] types = {"EI", "NS", "FT", "JP"};
 		String mbtiResult = "";
 
-		mbtiResult += eScore >= iScore ? "E" : "I";
-		mbtiResult += nScore >= sScore ? "N" : "S";
-		mbtiResult += fScore >= tScore ? "F" : "T";
-		mbtiResult += jScore >= pScore ? "J" : "P";
-
+		// 유형 쌍 배열을 돌면서 각 쌍의 점수 비교
+		for (String type : types) {
+			char first = type.charAt(0);
+			char second = type.charAt(1);
+			// 맵에 점수가 없을경우 초기값 지정
+			int firstScore = scoreMap.getOrDefault(first, 0);
+			int secondScore = scoreMap.getOrDefault(second, 0);
+			
+			if (firstScore > secondScore) {
+				mbtiResult += first;
+			} else if (firstScore < secondScore) {
+				mbtiResult += second;
+			} else { // 동점일경우 사전순으로 앞에있는게 나옴
+				mbtiResult += first < second? first : second;
+			}
+		}
+		
 		model.addAttribute("mbtiResult", mbtiResult);
 
         return "mbti/mbtiResult";
